@@ -383,7 +383,7 @@ class Image_translation_block():
             fls[:, 0::3] += 130
             fls[:, 1::3] += 80
 
-        writer = cv2.VideoWriter('out.mp4', cv2.VideoWriter_fourcc(*'mjpg'), 62.5, (256, 256))
+        writer = cv2.VideoWriter('out.mp4', cv2.VideoWriter_fourcc(*'mjpg'), 62.5, (256 * 3, 256))
 
         for i, frame in enumerate(fls):
 
@@ -418,8 +418,7 @@ class Image_translation_block():
 
 
             for i in range(g_out.shape[0]):
-                frame = g_out[i] * 255.0
-                #frame = np.concatenate((ref_in[i], g_out[i], fls_in[i]), axis=1) * 255.0
+                frame = np.concatenate((ref_in[i], g_out[i], fls_in[i]), axis=1) * 255.0
                 writer.write(frame.astype(np.uint8))
 
         writer.release()
@@ -433,8 +432,67 @@ class Image_translation_block():
         # os.system('rm out.mp4')
 
         print('Time - ffmpeg add audio:', time.time() - st)
+        
+
+    def LMtoFace(self, jpg=None, fls=None, audiofile=None, filepath=None, filename=None, fps=60, grey_only=False):
+        import time
+        st = time.time()
+        self.G.eval()
+
+        if(jpg is None):
+            jpg = glob.glob1(self.opt_parser.single_test, '*.jpg')[0]
+            jpg = cv2.imread(os.path.join(self.opt_parser.single_test, jpg))
+
+        if(fls is None):
+            fls = glob.glob1(self.opt_parser.single_test, '*.txt')[0]
+            fls = np.loadtxt(os.path.join(self.opt_parser.single_test, fls))
+            fls = fls * 95
+            fls[:, 0::3] += 130
+            fls[:, 1::3] += 80
+
+        writer = cv2.VideoWriter('out.mp4', cv2.VideoWriter_fourcc(*'mjpg'), fps, (256, 256))
+
+        for i, frame in enumerate(fls):
+
+            img_fl = np.ones(shape=(256, 256, 3)) * 255
+            fl = frame.astype(int)
+            img_fl = vis_landmark_on_img(img_fl, np.reshape(fl, (68, 3)))
+            frame = np.concatenate((img_fl, jpg), axis=2).astype(np.float32)/255.0
+
+            image_in, image_out = frame.transpose((2, 0, 1)), np.zeros(shape=(3, 256, 256))
+            image_in, image_out = torch.tensor(image_in, requires_grad=False), \
+                                  torch.tensor(image_out, requires_grad=False)
+
+            image_in, image_out = image_in.reshape(-1, 6, 256, 256), image_out.reshape(-1, 3, 256, 256)
+            image_in, image_out = image_in.to(device), image_out.to(device)
+
+            g_out = self.G(image_in)
+            g_out = torch.tanh(g_out)
+
+            g_out = g_out.cpu().detach().numpy().transpose((0, 2, 3, 1))
+            g_out[g_out < 0] = 0
+            ref_in = image_in[:, 3:6, :, :].cpu().detach().numpy().transpose((0, 2, 3, 1))
+            fls_in = image_in[:, 0:3, :, :].cpu().detach().numpy().transpose((0, 2, 3, 1))
+
+            if(grey_only):
+                g_out_grey =np.mean(g_out, axis=3, keepdims=True)
+                g_out[:, :, :, 0:1] = g_out[:, :, :, 1:2] = g_out[:, :, :, 2:3] = g_out_grey
 
 
+            for i in range(g_out.shape[0]):
+                frame = g_out[i] * 255.0
+                writer.write(frame.astype(np.uint8))
 
+        writer.release()
+        print('Time - only video:', time.time() - st)
 
+        if(filepath is None):
+            filepath = 'examples'
+        if(filename is None):
+            filename = 'v'
+        if(audiofile is None):
+            audiofile = os.path.join(filepath, filename[9:-16]+'.wav')
+        os.system('ffmpeg -loglevel error -y -i out.mp4 -i {} -pix_fmt yuv420p -strict -2 {}/{}.mp4'.format(
+            audiofile, filepath, filename[:-4]))
 
+        print('Time - ffmpeg add audio:', time.time() - st)
