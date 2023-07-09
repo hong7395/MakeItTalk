@@ -450,7 +450,11 @@ class Image_translation_block():
             fls[:, 0::3] += 130
             fls[:, 1::3] += 80
 
-        writer = cv2.VideoWriter('out.mp4', cv2.VideoWriter_fourcc(*'mjpg'), fps, (256, 256))
+        if(filepath is None):
+            filepath = 'examples'
+
+        outputFile = os.path.join(filepath, 'out.mp4')
+        writer = cv2.VideoWriter(outputFile, cv2.VideoWriter_fourcc(*'mjpg'), fps, (256, 256))
 
         for i, frame in enumerate(fls):
 
@@ -486,13 +490,12 @@ class Image_translation_block():
         writer.release()
         print('Time - only video:', time.time() - st)
 
-        if(filepath is None):
-            filepath = 'examples'
         if(filename is None):
             filename = 'v'
         if(audiofile is None):
             audiofile = os.path.join(filepath, filename[9:-16]+'.wav')
-        os.system('ffmpeg -loglevel error -y -i out.mp4 -i {} -pix_fmt yuv420p -strict -2 {}/{}.mp4'.format(
-            audiofile, filepath, filename[:-4]))
+        os.system('ffmpeg -loglevel error -y -i {} -i {} -pix_fmt yuv420p -strict -2 {}/{}.mp4'.format(
+            outputFile, audiofile, filepath, filename[:-4]))
+        # os.system('rm {}'.format(outputFile))
 
         print('Time - ffmpeg add audio:', time.time() - st)
