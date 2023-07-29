@@ -434,7 +434,7 @@ class Image_translation_block():
         print('Time - ffmpeg add audio:', time.time() - st)
         
 
-    def LMtoFace(self, jpg=None, fls=None, audiofile=None, filepath=None, filename=None, fps=60, grey_only=False):
+    def LMtoFace(self, jpg=None, fls=None, audiofile=None, filepath=None, filename=None, grey_only=False):
         import time
         st = time.time()
         self.G.eval()
@@ -454,7 +454,7 @@ class Image_translation_block():
             filepath = 'examples'
 
         outputFile = os.path.join(filepath, 'out.mp4')
-        writer = cv2.VideoWriter(outputFile, cv2.VideoWriter_fourcc(*'mjpg'), fps, (256, 256))
+        writer = cv2.VideoWriter(outputFile, cv2.VideoWriter_fourcc(*'mjpg'), 62.5, (256, 256))
 
         for i, frame in enumerate(fls):
 
