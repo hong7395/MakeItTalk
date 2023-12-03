@@ -454,7 +454,9 @@ class Image_translation_block():
             filepath = 'examples'
 
         outputFile = os.path.join(filepath, 'out.mp4')
+        outputFile_LM = os.path.join(filepath, 'out_LM.mp4')
         writer = cv2.VideoWriter(outputFile, cv2.VideoWriter_fourcc(*'mjpg'), 62.5, (256, 256))
+        writer_LM = cv2.VideoWriter(outputFile_LM, cv2.VideoWriter_fourcc(*'mjpg'), 62.5, (256 * 3, 256))
 
         for i, frame in enumerate(fls):
 
@@ -487,7 +489,11 @@ class Image_translation_block():
                 frame = g_out[i] * 255.0
                 writer.write(frame.astype(np.uint8))
 
+                frame = np.concatenate((ref_in[i], g_out[i], fls_in[i]), axis=1) * 255.0
+                writer_LM.write(frame.astype(np.uint8))
+
         writer.release()
+        writer_LM.release()
         print('Time - only video:', time.time() - st)
 
         if(filename is None):
@@ -496,6 +502,8 @@ class Image_translation_block():
             audiofile = os.path.join(filepath, filename[9:-16]+'.wav')
         os.system('ffmpeg -loglevel error -y -i {} -i {} -pix_fmt yuv420p -strict -2 {}/{}.mp4'.format(
             outputFile, audiofile, filepath, filename[:-4]))
+        os.system('ffmpeg -loglevel error -y -i {} -i {} -pix_fmt yuv420p -strict -2 {}/{}_LM.mp4'.format(
+            outputFile_LM, audiofile, filepath, filename[:-4]))
         # os.system('rm {}'.format(outputFile))
 
         print('Time - ffmpeg add audio:', time.time() - st)
