@@ -5,7 +5,6 @@ import torch
 from math import ceil
 from src.autovc.retrain_version.model_vc_37_1 import Generator
 from pydub import AudioSegment
-import pynormalize.pynormalize
 from scipy.io import  wavfile as wav
 from scipy.signal import stft
 
@@ -156,11 +155,12 @@ class AutoVC_mel_Convertor():
 
         # Step 1 : Normalize the volume
         target_dbfs = TARGET_AUDIO_DBFS
-        pynormalize.process_files(
-            Files=[audio_file],
-            target_dbfs=target_dbfs,
-            directory=os.path.join(self.src_dir, 'raw_wav')
-        )
+        
+        # Using pydub to normalize volume
+        sound = AudioSegment.from_wav(audio_file)
+        change_in_dBFS = target_dbfs - sound.dBFS
+        normalized_sound = sound.apply_gain(change_in_dBFS)
+        normalized_sound.export(audio_file, format="wav")
 
         #  Step 2 : load wav file
         sample_rate, samples = wav.read(audio_file)
